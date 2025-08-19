@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "copy:cesium": "mkdir -p public/cesium && cp -R node_modules/cesium/Build/Cesium/* public/cesium/",
+    "postinstall": "npm run copy:cesium"
+  }
+}
