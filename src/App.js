@@ -272,7 +272,7 @@ export default function App() {
 
     const qs = buildCommonParams();
 
-    return fetch(`${API_BASE ? API_BASE : ""}/api/events${qs ? `?${qs}&speed=fast` : `?speed=fast`}`, { // ← add speed=max
+    return fetch(`${API_BASE}/events${qs ? `?${qs}&speed=balanced` : `?speed=balanced`}`, { // ← add speed=max
       signal: controller.signal,
     })
       .then((r) => r.json())
@@ -372,13 +372,9 @@ export default function App() {
   
     const qs = buildCommonParams();
     const key = overrideKey ?? cacheKey;
-    // const url = key
-    //   ? `${API_BASE}/news?cache_key=${encodeURIComponent(key)}&${qs}&page_size=200&speed=balanced`
-    //   : `${API_BASE}/news${qs ? `?${qs}&page_size=200&speed=balanced` : `?page_size=200&speed=balanced`}`;
-
     const url = key
-      ? `${API_BASE ? API_BASE : ""}/api/news?cache_key=${encodeURIComponent(key)}&${qs}&page_size=120&speed=fast`
-      : `${API_BASE ? API_BASE : ""}/api/news${qs ? `?${qs}&page_size=120&speed=fast` : `?page_size=120&speed=fast`}`;
+      ? `${API_BASE}/news?cache_key=${encodeURIComponent(key)}&${qs}&page_size=200&speed=balanced`
+      : `${API_BASE}/news${qs ? `?${qs}&page_size=200&speed=balanced` : `?page_size=200&speed=balanced`}`;
   
     const tAll = performance.now();
     const t0 = performance.now();
