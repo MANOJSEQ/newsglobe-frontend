@@ -46,12 +46,16 @@ function formatDateTime(ts) {
 }
 
 
+
 // const API_BASE = "http://127.0.0.1:8000";
 
-const API_BASE =
+const rawBase =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
   process.env.REACT_APP_API_BASE ||
-  "http://127.0.0.1:8000"; // fallback for local dev
+  "http://127.0.0.1:8000";
+
+// remove any trailing slashes to avoid //events
+const API_BASE = (rawBase || "").replace(/\/+$/, "");
 
 const colorMap = {
   positive:
