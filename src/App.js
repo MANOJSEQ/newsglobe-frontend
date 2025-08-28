@@ -1,8 +1,13 @@
+// ----------------- App (Cesium Globe + Events UI) -----------------
 // src/App.js
+
 import { useEffect, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { placeArticles } from "./geoPlacement";
 
+// ----------------- Format Helpers -----------------
+
+// mm:ss for metric timings
 function formatDuration(ms) {
   const totalSeconds = Math.round(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -10,6 +15,7 @@ function formatDuration(ms) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+// Accepts Date | number | ISO-ish string (YYYYMMDDTHHMMSSZ also) → localized string
 function formatDateTime(ts) {
   if (ts == null) return "—";
   let d = null;
@@ -45,17 +51,7 @@ function formatDateTime(ts) {
   });
 }
 
-
-
-// const API_BASE = "http://127.0.0.1:8000";
-
-// const rawBase =
-//   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
-//   process.env.REACT_APP_API_BASE ||
-//   "http://127.0.0.1:8000";
-
-// // remove any trailing slashes to avoid //events
-// const API_BASE = (rawBase || "").replace(/\/+$/, "");
+// ----------------- Config / API Base -----------------
 
 const rawBase =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
@@ -63,6 +59,7 @@ const rawBase =
 
 const API_BASE = (rawBase || "").replace(/\/+$/, "");
 
+// ----------------- Static Icons / Options -----------------
 
 const colorMap = {
   positive:
@@ -91,8 +88,7 @@ const categories = [
 ];
 
 const LANGUAGE_OPTIONS = [
-
-  { code: "",   label: "All" }, // ← special: means “no restriction”
+  { code: "",   label: "All" }, // special: means “no restriction”
   { code: "en", label: "English" },
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
@@ -107,36 +103,44 @@ const LANGUAGE_OPTIONS = [
 ];
 const TRANSLATE_OPTIONS = LANGUAGE_OPTIONS.filter(o => o.code); // no “All” here
 
-
+// ----------------- Main Component -----------------
 
 export default function App() {
+  // UI toggles/state
   const [showOriginal, setShowOriginal] = useState(false);
+
+  // Data (flat articles list or per-event countries)
   const [articles, setArticles] = useState([]);
   const [pickedArticle, setPickedArticle] = useState(null);
+
+  // Cesium + network state
   const [isBootingCesium, setIsBootingCesium] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [events, setEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null); // event payload
-  const [countries, setCountries] = useState([]); // per-country data for selected event
-  const [pickedCountry, setPickedCountry] = useState(null); // UI card
+  const requestRef = useRef(null);
+  const initOnce = useRef(false);
 
-  // filters
+  // Events and event details
+  const [events, setEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [countries, setCountries] = useState([]);     // per-country for selected event
+  const [pickedCountry, setPickedCountry] = useState(null);
+
+  // Filters
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [language, setLanguage] = useState("");
   const [doTranslate, setDoTranslate] = useState(false);
   const [translateTo, setTranslateTo] = useState("en");
-  const requestRef = useRef(null);
   const [cacheKey, setCacheKey] = useState("");
-  // const [sim, setSim] = useState(0.84); // similarity threshold
+  // const [sim, setSim] = useState(0.84); // similarity threshold (unused—kept for future)
   const [minCountries, setMinCountries] = useState(2);
   const [minArticles, setMinArticles] = useState(2);
-  const initOnce = useRef(false);
-  
+
+  // ----------------- Map Redraw On Camera Stop -----------------
   useEffect(() => {
     const v = window.cesiumViewer;
     if (!v) return;
-    // redraw ONLY after the user stops moving the globe; don't post metrics
+    // Redraw ONLY after the globe stops moving; skip posting metrics
     const onMoveEnd = () => {
       if (!selectedEvent) {
         if (articles?.length) drawArticlePins(articles, { sendMetric: false });
@@ -144,12 +148,12 @@ export default function App() {
         if (countries?.length) drawPins(countries, { sendMetric: false });
       }
     };
-      
     v.camera.moveEnd.addEventListener(onMoveEnd);
     return () => v.camera.moveEnd.removeEventListener(onMoveEnd);
   }, [articles, countries, selectedEvent]);
-  
-  // centralised metric poster (easy to disable/debounce later)
+
+  // ----------------- Metrics Helper -----------------
+  // Centralized metric poster (easy to disable/debounce later)
   const postMetric = (payload) =>
     fetch(`${API_BASE}/client-metric`, {
       method: "POST",
@@ -157,11 +161,12 @@ export default function App() {
       body: JSON.stringify(payload),
     }).catch(() => {});
 
+  // ----------------- Cesium Boot (one time) -----------------
   useEffect(() => {
     if (initOnce.current) return;
     initOnce.current = true;
 
-    // Cesium boot
+    // Cesium boot (serving Cesium from /cesium)
     window.CESIUM_BASE_URL = "/cesium";
     const script = document.createElement("script");
     script.src = "/cesium/Cesium.js";
@@ -174,9 +179,9 @@ export default function App() {
         geocoder: false,
         selectionIndicator: false,
         infoBox: false,
-        // add these to remove the top-right icons and bottom bars
+        // Remove top-right icons & bottom bars as desired
         homeButton: true,
-        sceneModePicker: true,
+        sceneModePicker: false,
         navigationHelpButton: true,
         navigationInstructionsInitiallyVisible: true,
         fullscreenButton: true,
@@ -184,12 +189,12 @@ export default function App() {
         timeline: false,    // bottom time axis
       });
 
-      // NEW: kill default double-click “track entity”
+      // Prevent default double-click “track entity”
       viewer.screenSpaceEventHandler.removeInputAction(
         window.Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
       );
 
-      // (optional) keep camera in a comfy range to avoid “inside the globe” zooms
+      // Keep camera within a comfy range (avoid “inside globe” zooms)
       const ssc = viewer.scene.screenSpaceCameraController;
       ssc.minimumZoomDistance = 2e5;   // ~200 km
       ssc.maximumZoomDistance = 3e7;   // ~30,000 km
@@ -197,12 +202,10 @@ export default function App() {
       window.cesiumViewer = viewer;
       setIsBootingCesium(false);
 
-      // click handler – pick a country pin
-      const handler = new window.Cesium.ScreenSpaceEventHandler(viewer.scene.canvas); // ← add this
+      // Click handler – pick either an article pin or a country pin
+      const handler = new window.Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction((movement) => {
-        // ensure we’re not in tracking mode
-        viewer.trackedEntity = undefined;
-
+        viewer.trackedEntity = undefined; // ensure not tracking anything
         const picked = viewer.scene.pick(movement.position);
         if (picked && picked.id) {
           if (picked.id.articleData) {
@@ -221,7 +224,7 @@ export default function App() {
         }
       }, window.Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-      // initial: load events
+      // Initial load
       loadEvents();
     };
     document.body.appendChild(script);
@@ -231,11 +234,13 @@ export default function App() {
     };
   }, []);
 
+  // ----------------- Network: Abort Helper -----------------
   const abortInFlight = () => {
     if (requestRef.current) requestRef.current.abort();
     requestRef.current = null;
   };
 
+  // ----------------- Query Builder (shared across endpoints) -----------------
   const buildCommonParams = () => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -245,14 +250,13 @@ export default function App() {
       params.set("translate", "true");
       params.set("target_lang", translateTo);
     }
-    // NEW:
     params.set("min_countries", String(minCountries));
     params.set("min_articles", String(minArticles));
     return params.toString();
   };
-  
+
+  // ----------------- UI: Clear Filters (no fetch) -----------------
   const handleClearFilters = () => {
-    // just reset the filter inputs — no fetches, no map changes
     setQ("");
     setCategory("");
     setLanguage("");
@@ -262,8 +266,8 @@ export default function App() {
     setMinCountries(2);
     setMinArticles(2);
   };
-  
 
+  // ----------------- Fetch: Events (and then articles) -----------------
   const loadEvents = () => {
     abortInFlight();
     const controller = new AbortController();
@@ -272,7 +276,7 @@ export default function App() {
 
     const qs = buildCommonParams();
 
-    return fetch(`${API_BASE}/events${qs ? `?${qs}&speed=balanced` : `?speed=balanced`}`, { // ← add speed=max
+    return fetch(`${API_BASE}/events${qs ? `?${qs}&speed=balanced` : `?speed=balanced`}`, {
       signal: controller.signal,
     })
       .then((r) => r.json())
@@ -282,7 +286,7 @@ export default function App() {
         setSelectedEvent(null);
         setCountries([]);
         drawPins([], { sendMetric: false });
-        return loadNews(data.cache_key || "");
+        return loadNews(data.cache_key || ""); // fetch news for the same cache
       })
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
@@ -293,7 +297,8 @@ export default function App() {
       });
   };
 
-  // Replace your entire drawArticlePins with this:
+  // ----------------- Draw: Article Pins -----------------
+  // Replace your entire drawArticlePins with this (logic unchanged; just tidy comments)
   const drawArticlePins = (rows, { sendMetric = true } = {}) => {
     const v = window.cesiumViewer;
     if (!v) return;
@@ -303,7 +308,6 @@ export default function App() {
 
     // Normalize/relocate all points strictly inside their countries
     const placed = placeArticles(rows);
-
 
     placed.forEach((a) => {
       if (!Number.isFinite(a.lon) || !Number.isFinite(a.lat)) return;
@@ -324,6 +328,7 @@ export default function App() {
           width: 24,
           height: 24,
         },
+        // Store the raw data on the entity for click handling
         articleData: {
           id: a.id,
           title: a.title,
@@ -362,37 +367,35 @@ export default function App() {
     }
   };
 
-
-
-  // add this helper
+  // ----------------- Fetch: News (flat list for article pins) -----------------
   const loadNews = (overrideKey) => {
     abortInFlight();
     const controller = new AbortController();
     requestRef.current = controller;
-  
+
     const qs = buildCommonParams();
     const key = overrideKey ?? cacheKey;
     const url = key
       ? `${API_BASE}/news?cache_key=${encodeURIComponent(key)}&${qs}&page_size=200&speed=balanced`
       : `${API_BASE}/news${qs ? `?${qs}&page_size=200&speed=balanced` : `?page_size=200&speed=balanced`}`;
-  
+
     const tAll = performance.now();
     const t0 = performance.now();
-  
+
     return fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        const rows = data?.items || [];            // ✅ extract items
+        const rows = data?.items || [];
         const fetchMs = performance.now() - t0;
-  
-        setArticles(rows);                          // ✅ store rows
-        drawArticlePins(rows);                      // ✅ draw rows
+
+        setArticles(rows);
+        drawArticlePins(rows);
         const totalMs = performance.now() - tAll;
-  
+
         postMetric({
           name: "Fetch articles from backend",
           duration_str: formatDuration(fetchMs),
-          count: rows.length,                       // ✅ rows is defined
+          count: rows.length,
           ts: Date.now(),
         });
         postMetric({
@@ -401,7 +404,7 @@ export default function App() {
           count: rows.length,
           ts: Date.now(),
         });
-  
+
         setPickedArticle(null);
         setPickedCountry(null);
       })
@@ -409,9 +412,8 @@ export default function App() {
         if (err.name !== "AbortError") console.error(err);
       });
   };
-  
-  
 
+  // ----------------- Fetch: Event Details (per-country split) -----------------
   const loadEventDetails = (event_id) => {
     abortInFlight();
     const controller = new AbortController();
@@ -421,6 +423,7 @@ export default function App() {
     const qsBase = buildCommonParams();
     const params = new URLSearchParams(qsBase);
     if (cacheKey) params.set("cache_key", cacheKey);
+    params.set("max_samples", "0");
 
     fetch(`${API_BASE}/event/${event_id}?${params.toString()}`, {
       signal: controller.signal,
@@ -445,7 +448,8 @@ export default function App() {
       });
   };
 
-  // 3) Clean drawPins (no stray n/spiral unless you want to scatter countries too)
+  // ----------------- Draw: Country Pins (for selected event) -----------------
+  // Clean drawPins (no extra scatter; just one pin per country centroid)
   const drawPins = (countryRows, { sendMetric = true } = {}) => {
     const viewer = window.cesiumViewer;
     if (!viewer) return;
@@ -480,6 +484,7 @@ export default function App() {
     }
   };
 
+  // ----------------- Small Utilities -----------------
   const titleCase = (s) =>
     (s || "")
       .toString()
@@ -489,6 +494,7 @@ export default function App() {
 
   const showLoader = isBootingCesium || isLoading;
 
+  // ----------------- Render -----------------
   return (
     <>
       {/* Left: Events List */}
@@ -566,7 +572,7 @@ export default function App() {
           <span className="label-text">Show original text</span>
         </label>
 
-        {/* Min countries + Min articles as small dropdowns */}
+        {/* Min countries + Min articles as compact dropdowns */}
         <div className="min-row">
           <div className="min-item">
             <span className="mini-label">Min countries</span>
@@ -595,7 +601,6 @@ export default function App() {
           </div>
         </div>
 
-
         <div className="btn-row">
           <button onClick={loadEvents} disabled={isLoading}>
             Load events & articles
@@ -612,7 +617,7 @@ export default function App() {
           <h3 style={{marginTop:0}}>
             {pickedCountry.country} — {pickedCountry.count} articles
           </h3>
-          {/* Country meta (one per line) */}
+          {/* Country meta */}
           <div style={{margin:"10px 0"}}>
             <div style={{marginBottom:4}}>
               <strong>Avg sentiment:</strong> {pickedCountry.avg_sentiment || "—"}
@@ -623,22 +628,23 @@ export default function App() {
             </div>
           </div>
           <p style={{marginTop:8}}>{pickedCountry.summary}</p>
-          <div style={{marginTop:10}}>
+
+          <div className="sample-list">
             {(pickedCountry.samples || []).map((s, i) => (
-              <div key={i} style={{marginBottom:6}}>
-                <span style={{fontSize:12, opacity:0.8}}>
-                  [{s.source}{s.detected_lang ? ` · ${s.detected_lang.toUpperCase()}` : ""}]{" "}
+              <div key={i} className="sample-row">
+                <span className="sample-meta">
+                  [{s.source}{s.detected_lang ? ` · ${s.detected_lang.toUpperCase()}` : ""}]
                 </span>
                 <a href={s.url} target="_blank" rel="noreferrer">
                   {showOriginal ? (s.orig_title || s.original_title || s.title) : s.title}
                 </a>
                 {showOriginal && (s.orig_title || s.original_title) && (s.orig_title || s.original_title) !== s.title && (
-                  <div style={{fontSize:12, opacity:0.75}}>Translated: {s.title}</div>
+                  <div className="sample-translated">Translated: {s.title}</div>
                 )}
-
               </div>
             ))}
           </div>
+
           <div className="btn-row" style={{marginTop:12}}>
             <button className="btn-primary" onClick={()=>setPickedCountry(null)}>Close</button>
             <button
@@ -656,12 +662,13 @@ export default function App() {
         </div>
       )}
 
+      {/* Bottom details for picked article */}
       {pickedArticle && (
         <div className="details-card">
           <h3 style={{marginTop:0}}>
             {showOriginal && pickedArticle.origTitle ? pickedArticle.origTitle : pickedArticle.title}
           </h3>
-          {/* Article meta (one per line) */}
+          {/* Article meta */}
           <div style={{margin:"10px 0"}}>
             <div style={{marginBottom:4}}>
               <strong>Source:</strong> {pickedArticle.source || "—"}
@@ -725,6 +732,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ----------------- Inline Styles (scoped) ----------------- */}
       <style>{`
         .details-card {
           position: absolute;
@@ -828,14 +836,25 @@ export default function App() {
           font-size:13px;
           margin:8px 0;
         }
-        .filter-panel input,
+        
+        /* Match Search input to selects (leave checkboxes alone) */
+        .filter-panel input:not([type="checkbox"]),
         .filter-panel select {
-          width:100%;
-          margin-top:4px;
-          padding:6px;
-          border-radius:6px;
-          border:1px solid #ddd;
+          width: 100%;
+          margin-top: 4px;
+          height: 38px;         /* same height */
+          padding: 0 12px;      /* same inner padding */
+          border-radius: 10px;  /* same corners */
+          border: 1px solid #ddd;
+          box-sizing: border-box;
         }
+
+        /* Normalize text input look across browsers (won’t affect the select arrow) */
+        .filter-panel input[type="text"] {
+          -webkit-appearance: none;
+          appearance: none;
+        }   
+
         .filter-panel .row {
           display:flex;
           align-items:center;
@@ -872,33 +891,58 @@ export default function App() {
           border-top-color: #007bff;
           animation: spin 0.8s linear infinite;
         }
-        /* Move Cesium's toolbar to bottom-right, beside the fullscreen button */
+
+        /* --- Cesium toolbar: bottom-right, single row --- */
         .cesium-viewer .cesium-viewer-toolbar {
+          overflow: visible !important;
           position: absolute !important;
           top: auto !important;
           left: auto !important;
           bottom: 20px !important;
-          right: 60px !important; /* leave space for the fullscreen button at right:20px */
-          z-index: 1100;          /* above the globe */
-          display: flex;
-          gap: 6px;
+          right: 60px !important;   /* leave space for fullscreen at 20px */
+          z-index: 1100 !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          flex-wrap: nowrap !important;   /* keep in one straight line */
         }
 
-        /* Make sure the fullscreen button itself sits in the corner */
+        /* keep each control same size so the row aligns neatly */
+        .cesium-viewer .cesium-toolbar-button,
+        .cesium-viewer .cesium-navigationHelpButton-wrapper {
+          width: 32px !important;
+          height: 32px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* --- Fullscreen button pinned to the corner --- */
         .cesium-viewer .cesium-viewer-fullscreenContainer {
-          bottom: 20px !important;
-          right: 20px !important;
-        }
-
-        /* (Optional) If you keep help instructions visible, move that popup too */
-        .cesium-viewer .cesium-viewer-navigationHelp {
           position: absolute !important;
           top: auto !important;
           left: auto !important;
-          bottom: 60px !important;
+          bottom: 20px !important;
           right: 20px !important;
-          z-index: 1100;
+          z-index: 1100 !important;
         }
+
+        /* force Navigation Help panel ABOVE (handles multiple Cesium versions) */
+        .cesium-viewer .cesium-viewer-navigationHelp,
+        .cesium-viewer .cesium-navigationHelpButton-wrapper .cesium-navigation-help,
+        .cesium-viewer .cesium-navigationHelpButton-wrapper .cesium-navigationHelp {
+          position: absolute !important;
+          top: auto !important;
+          bottom: 64px !important;   /* above the button row */
+          right: 0 !important;       /* align to the help button */
+          left: auto !important;
+          z-index: 1200 !important;
+        }
+
+        
+
         .btn-row .btn-outline {
           background: #fff;
           color: #007bff;
@@ -925,15 +969,15 @@ export default function App() {
         .filter-panel .min-row{
           display:flex;
           align-items:center;
-          gap:12px;           /* space between the two items */
+          gap:12px;
           margin:8px 0;
-          white-space:nowrap; /* keep them on one line */
+          white-space:nowrap;
         }
 
         .filter-panel .min-item{
           display:flex;
           align-items:center;
-          gap:6px;            /* label ↔ select spacing */
+          gap:6px;
         }
 
         .filter-panel .mini-label{
@@ -943,15 +987,30 @@ export default function App() {
 
         /* Small “checkbox-ish” selects */
         .filter-panel .mini-select{
-          width:44px;         /* small but readable */
-          height:22px;        /* close to checkbox height */
+          width:44px;
+          height:22px;
           padding:0 2px;
           border:1px solid #ddd;
           border-radius:4px;
-          text-align-last:center;   /* center selected value (most browsers) */
+          text-align-last:center;
         }
 
-        
+        /* scrollable list inside the country details card */
+        .sample-list{
+          margin-top:10px;
+          max-height: 240px;   /* keeps the card compact */
+          overflow-y: auto;
+          padding-right: 6px;  /* room for scrollbar */
+        }
+        .sample-row{ margin-bottom:6px; }
+        .sample-meta{ font-size:12px; opacity:0.8; margin-right:4px; }
+        .sample-translated{ font-size:12px; opacity:0.75; }
+
+        /* nice, slim scrollbar (webkit) */
+        .sample-list::-webkit-scrollbar { width: 8px; }
+        .sample-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+        .sample-list::-webkit-scrollbar-track { background: transparent; }
+
         @keyframes spin {
           to { transform: rotate(360deg); }
         }`
