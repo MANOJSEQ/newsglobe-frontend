@@ -103,6 +103,36 @@ const LANGUAGE_OPTIONS = [
 ];
 const TRANSLATE_OPTIONS = LANGUAGE_OPTIONS.filter(o => o.code); // no “All” here
 
+const LANG_NAMES = {
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  ar: "Arabic",
+  ru: "Russian",
+  pt: "Portuguese",
+  zh: "Chinese",
+  hi: "Hindi",
+  ja: "Japanese",
+  ko: "Korean",
+};
+
+const langName = (code) => {
+  if (!code) return "—";
+  const c = String(code).toLowerCase();
+  // be tolerant of things like "pt-BR" or "zh-Hans"
+  const base = c.startsWith("zh") ? "zh" : c.slice(0, 2);
+  return LANG_NAMES[base] || code.toUpperCase();
+};
+
+const USES_12H = new Intl.DateTimeFormat(undefined, { hour: "numeric" })
+  .formatToParts(new Date())
+  .some(p => p.type === "dayPeriod");
+
+const TIME_HINT = USES_12H ? "hh:mm AM/PM" : "HH:mm";
+const DATE_HINT = "dd/mm/yyyy";
+
+
 // ----------------- Main Component -----------------
 
 export default function App() {
@@ -118,6 +148,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const requestRef = useRef(null);
   const initOnce = useRef(false);
+
+  const startRef = useRef(null);
+  const endRef = useRef(null);
 
   // Events and event details
   const [events, setEvents] = useState([]);
@@ -135,6 +168,9 @@ export default function App() {
   // const [sim, setSim] = useState(0.84); // similarity threshold (unused—kept for future)
   const [minCountries, setMinCountries] = useState(2);
   const [minArticles, setMinArticles] = useState(2);
+
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
 
   // ----------------- Map Redraw On Camera Stop -----------------
   useEffect(() => {
@@ -246,6 +282,11 @@ export default function App() {
     if (q) params.set("q", q);
     if (category) params.set("category", category);
     if (language) params.set("language", language);
+  
+    // NEW: date range (send UTC ISO strings)
+    if (dateStart) params.set("start", new Date(dateStart).toISOString());
+    if (dateEnd) params.set("end", new Date(dateEnd).toISOString());
+  
     if (doTranslate && translateTo) {
       params.set("translate", "true");
       params.set("target_lang", translateTo);
@@ -254,6 +295,7 @@ export default function App() {
     params.set("min_articles", String(minArticles));
     return params.toString();
   };
+  
 
   // ----------------- UI: Clear Filters (no fetch) -----------------
   const handleClearFilters = () => {
@@ -265,6 +307,8 @@ export default function App() {
     setShowOriginal(false);
     setMinCountries(2);
     setMinArticles(2);
+    setDateStart("");
+    setDateEnd("");
   };
 
   // ----------------- Fetch: Events (and then articles) -----------------
@@ -545,6 +589,65 @@ export default function App() {
           </select>
         </label>
 
+        <label>
+          Start date/time
+          <div className="dtl-wrap" data-12h={USES_12H ? "1" : "0"}>
+            <input
+              ref={startRef}
+              type="datetime-local"
+              value={dateStart}
+              onChange={(e)=>setDateStart(e.target.value)}
+            />
+            {/* hides native --:-- -- until there’s a value */}
+            {!dateStart && <span className="dtl-cover" aria-hidden="true" />}
+            {/* separate hover/click zones for tooltips */}
+            {!dateStart && (
+              <>
+                <span
+                  className="dtl-hit dtl-date"
+                  title={`Date format: ${DATE_HINT}`}
+                  onClick={()=>startRef.current?.showPicker?.() || startRef.current?.focus()}
+                />
+                <span
+                  className="dtl-hit dtl-time"
+                  title={`Time format: ${TIME_HINT}`}
+                  onClick={()=>startRef.current?.showPicker?.() || startRef.current?.focus()}
+                />
+              </>
+            )}
+          </div>
+        </label>
+
+
+        <label>
+          End date/time
+          <div className="dtl-wrap" data-12h={USES_12H ? "1" : "0"}>
+            <input
+              ref={endRef}
+              type="datetime-local"
+              value={dateEnd}
+              onChange={(e)=>setDateEnd(e.target.value)}
+            />
+            {!dateEnd && <span className="dtl-cover" aria-hidden="true" />}
+            {!dateEnd && (
+              <>
+                <span
+                  className="dtl-hit dtl-date"
+                  title={`Date format: ${DATE_HINT}`}
+                  onClick={()=>endRef.current?.showPicker?.() || endRef.current?.focus()}
+                />
+                <span
+                  className="dtl-hit dtl-time"
+                  title={`Time format: ${TIME_HINT}`}
+                  onClick={()=>endRef.current?.showPicker?.() || endRef.current?.focus()}
+                />
+              </>
+            )}
+          </div>
+        </label>
+
+
+
         <label className="row">
           <input
             type="checkbox"
@@ -677,7 +780,7 @@ export default function App() {
               <strong>Sentiment:</strong> {pickedArticle.sentiment || "—"}
             </div>
             <div style={{marginBottom:4}}>
-              <strong>Language:</strong> {pickedArticle.detectedLang ? pickedArticle.detectedLang.toUpperCase() : "—"}
+              <strong>Language:</strong> {langName(pickedArticle.detectedLang)}
             </div>
             <div style={{marginBottom:4}}>
               <strong>Category:</strong> {titleCase(pickedArticle.category || category || "general")}
@@ -941,7 +1044,34 @@ export default function App() {
           z-index: 1200 !important;
         }
 
-        
+        /* fixed-width numerals keeps alignment predictable */
+        .filter-panel input[type="datetime-local"]{
+          font-variant-numeric: tabular-nums;
+          font-feature-settings: "tnum";
+        }
+
+        .dtl-wrap{
+          position: relative;
+          --pad-x: 12px;     /* must match the input’s horizontal padding */
+          --date-ch: 13;     /* width of "dd/mm/yyyy,␠␠" in chars; tweak if needed */
+        }
+
+
+        /* transparent hit areas that provide separate tooltips */
+        .dtl-hit{
+          position:absolute; top:0; bottom:0;
+          background: transparent;
+        }
+        .dtl-date{
+          left: var(--pad-x);
+          width: calc(var(--date-ch) * 1ch);
+        }
+        .dtl-time{
+          left: calc(var(--pad-x) + var(--date-ch) * 1ch);
+          right: 36px;  /* stop before the calendar icon */
+        }
+
+
 
         .btn-row .btn-outline {
           background: #fff;
