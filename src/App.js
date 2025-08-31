@@ -215,15 +215,17 @@ export default function App() {
         geocoder: false,
         selectionIndicator: false,
         infoBox: false,
-        // Remove top-right icons & bottom bars as desired
         homeButton: true,
         sceneModePicker: false,
         navigationHelpButton: true,
-        navigationInstructionsInitiallyVisible: true,
+        navigationInstructionsInitiallyVisible: false,
         fullscreenButton: true,
         animation: false,   // bottom-left play/time speed
         timeline: false,    // bottom time axis
       });
+
+      const nhb = viewer._navigationHelpButton || viewer.navigationHelpButton;
+      if (nhb?.viewModel) nhb.viewModel.showInstructions = false;
 
       // Prevent default double-click “track entity”
       viewer.screenSpaceEventHandler.removeInputAction(
@@ -342,7 +344,6 @@ export default function App() {
   };
 
   // ----------------- Draw: Article Pins -----------------
-  // Replace your entire drawArticlePins with this (logic unchanged; just tidy comments)
   const drawArticlePins = (rows, { sendMetric = true } = {}) => {
     const v = window.cesiumViewer;
     if (!v) return;
@@ -493,7 +494,6 @@ export default function App() {
   };
 
   // ----------------- Draw: Country Pins (for selected event) -----------------
-  // Clean drawPins (no extra scatter; just one pin per country centroid)
   const drawPins = (countryRows, { sendMetric = true } = {}) => {
     const viewer = window.cesiumViewer;
     if (!viewer) return;
@@ -1038,10 +1038,11 @@ export default function App() {
         .cesium-viewer .cesium-navigationHelpButton-wrapper .cesium-navigationHelp {
           position: absolute !important;
           top: auto !important;
-          bottom: 64px !important;   /* above the button row */
-          right: 0 !important;       /* align to the help button */
           left: auto !important;
+          right: 0 !important;                 /* align to the help button */
+          bottom: 46px !important;             /* sit above the toolbar row */
           z-index: 1200 !important;
+          transform-origin: right bottom !important; /* animate from bottom-right */
         }
 
         /* fixed-width numerals keeps alignment predictable */
