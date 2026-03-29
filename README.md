@@ -1,70 +1,154 @@
-# Getting Started with Create React App
+# 🌍 NewsGlobe Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An immersive **3D globe-based news exploration platform** that lets users discover global news visually by interacting with a rotating Earth.
 
-## Available Scripts
+This project transforms traditional news browsing into a **spatial, interactive experience**, where headlines are mapped to real-world locations.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## ✨ Overview
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+NewsGlobe allows users to:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+* 🌐 Spin and explore a **3D Earth**
+* 📍 Click on regions to view **location-based news**
+* 📰 See global events in a **visual, intuitive way**
 
-### `npm test`
+This frontend connects to a backend API to fetch and display news dynamically.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🚀 Features
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+* 🌍 **Interactive 3D Globe**
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+  * Smooth rotation, zoom, and navigation
+  * Geographic interaction with real-world mapping
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+* 📰 **Location-Based News**
 
-### `npm run eject`
+  * News tied to coordinates
+  * Region-specific exploration
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+* ⚡ **Fast & Modern UI**
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+  * Built with React
+  * Component-based architecture
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+* 🔗 **API Integration**
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+  * Fetches live or stored news data
+  * Scalable for real-time updates
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🛠️ Tech Stack
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+* **Frontend Framework:** React.js
+* **3D Visualization:** Three.js / Globe.gl *(update if different)*
+* **HTTP Client:** Axios / Fetch
+* **Styling:** CSS / Tailwind *(update based on your project)*
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## 📦 Getting Started
 
-### Analyzing the Bundle Size
+### 1. Clone the repository
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```bash
+git clone https://github.com/MANOJSEQ/newsglobe-frontend.git
+cd newsglobe-frontend
+```
 
-### Making a Progressive Web App
+### 2. Install dependencies
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```bash
+npm install
+```
 
-### Advanced Configuration
+### 3. Run the app
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```bash
+npm start
+```
 
-### Deployment
+The app will run at:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```
+http://localhost:3000
+```
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## ⚙️ Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+REACT_APP_API_URL=your_backend_url
+REACT_APP_API_KEY=your_api_key
+```
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+│── components/        # UI components (Globe, UI panels, etc.)
+│── pages/            # Page-level views
+│── services/         # API calls
+│── hooks/            # Custom React hooks
+│── utils/            # Helper functions
+│── assets/           # Images, icons
+│── App.js
+│── index.js
+```
+
+---
+
+## 🧠 How It Works
+
+1. A 3D globe is rendered using WebGL
+2. News data is fetched from an API
+3. Articles are mapped to geographic coordinates
+4. Users interact with the globe to explore stories
+
+---
+
+## 🔮 Future Improvements
+
+* 🔍 Search & filter by category
+* 🌡️ Heatmap of trending news regions
+* 🧠 AI-generated summaries
+* 🌙 Dark mode
+* 📱 Mobile optimization
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the project
+2. Create your feature branch
+3. Commit your changes
+4. Push and open a Pull Request
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 👤 Author
+
+**Manoj**
+
+---
+
+## ⭐ Support
+
+If you like this project, please ⭐ the repo — it helps a lot!
