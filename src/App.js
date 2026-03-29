@@ -186,7 +186,7 @@ export default function App() {
     };
     v.camera.moveEnd.addEventListener(onMoveEnd);
     return () => v.camera.moveEnd.removeEventListener(onMoveEnd);
-  }, [articles, countries, selectedEvent]);
+  }, [articles, countries, selectedEvent, drawArticlePins, drawPins]);
 
   // ----------------- Metrics Helper -----------------
   // Centralized metric poster (easy to disable/debounce later)
@@ -270,7 +270,7 @@ export default function App() {
     return () => {
       if (window.cesiumViewer) window.cesiumViewer.destroy();
     };
-  }, []);
+  }, [loadEvents]);
 
   // ----------------- Network: Abort Helper -----------------
   const abortInFlight = () => {
